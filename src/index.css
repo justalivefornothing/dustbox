@@ -1,111 +1,262 @@
+@import 'tailwindcss';
+@import '@fontsource/silkscreen/400.css';
+@import '@fontsource/silkscreen/700.css';
+@import '@fontsource/press-start-2p/400.css';
+
+@theme {
+  --font-pixel: 'Silkscreen', 'Courier New', ui-monospace, monospace;
+  --font-title: 'Press Start 2P', 'Silkscreen', ui-monospace, monospace;
+
+  --color-ink: #0b0c10;
+  --color-coal: #15171d;
+  --color-slate: #1f222b;
+  --color-line: #2c3040;
+  --color-line-2: #3d4254;
+  --color-dust: #8b90a3;
+  --color-chalk: #d7dae3;
+  --color-neon: #7df9ff;
+  --color-neon-dim: #2ab6bf;
+  --color-ember: #ff9f1c;
+  --color-magma: #ff5a1f;
+  --color-acid: #96fa3c;
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  color-scheme: dark;
+  background: var(--color-ink);
+  color: var(--color-chalk);
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  line-height: 1.35;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  text-rendering: optimizeSpeed;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
+html,
+body,
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  margin: 0;
+  min-height: 100%;
 }
 
 body {
-  margin: 0;
+  /* Subtle checker so the charcoal background has some grain. */
+  background-color: var(--color-ink);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 8px 8px;
+  overflow-x: hidden;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+::selection {
+  background: var(--color-neon);
+  color: var(--color-ink);
+}
+
+/* ---------------------------------------------------------------- utilities */
+
+@utility pixel-border {
+  /* Chunky stepped 2px border with a notch at each corner. */
+  border: 2px solid var(--color-line-2);
+  box-shadow:
+    0 0 0 2px var(--color-ink),
+    0 0 0 4px var(--color-line);
+}
+
+@utility pixel-panel {
+  background: var(--color-coal);
+  border: 2px solid var(--color-line);
+  box-shadow: inset 0 0 0 2px var(--color-ink);
+}
+
+@utility crisp {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@utility focus-neon {
+  &:focus-visible {
+    outline: 2px solid var(--color-neon);
+    outline-offset: 2px;
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+/* ------------------------------------------------------------- components */
+
+.btn {
+  @apply inline-flex items-center justify-center gap-1.5 px-2.5 h-8 min-w-8 select-none text-[12px] uppercase tracking-wide text-chalk bg-slate border-2 border-line-2 focus-neon;
+  box-shadow: inset -2px -2px 0 0 var(--color-ink), inset 2px 2px 0 0 rgba(255, 255, 255, 0.06);
+  transition: background-color 80ms linear, color 80ms linear, transform 60ms linear;
+}
+.btn:hover {
+  @apply bg-line-2 text-white;
+}
+.btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 2px 2px 0 0 var(--color-ink);
+}
+.btn:disabled {
+  @apply opacity-40 cursor-not-allowed;
+}
+.btn[aria-pressed='true'],
+.btn.is-on {
+  @apply bg-neon-dim/25 text-neon border-neon;
+  box-shadow: 0 0 0 1px var(--color-neon) inset, 0 0 8px rgba(125, 249, 255, 0.35);
+}
+.btn-danger:hover {
+  @apply bg-magma/30 text-white border-magma;
+}
+
+.field {
+  @apply h-8 px-2 bg-ink border-2 border-line-2 text-[12px] text-chalk focus-neon;
+}
+select.field {
+  @apply pr-6 appearance-none cursor-pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-dust) 50%),
+    linear-gradient(135deg, var(--color-dust) 50%, transparent 50%);
+  background-position:
+    calc(100% - 12px) 12px,
+    calc(100% - 8px) 12px;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
+}
+select.field:hover {
+  @apply border-dust;
+}
+
+.kbd {
+  @apply inline-block px-1 min-w-4 text-center text-[10px] leading-4 text-dust bg-ink border border-line-2 align-middle;
+}
+
+/* Swatch buttons in the dock. */
+.swatch {
+  @apply relative flex flex-col items-center justify-center gap-1 w-14 h-16 shrink-0 select-none bg-slate border-2 border-line-2 text-[10px] uppercase text-dust focus-neon;
+  box-shadow: inset -2px -2px 0 0 var(--color-ink);
+  transition: transform 60ms linear, border-color 80ms linear, color 80ms linear;
+}
+.swatch:hover {
+  @apply text-chalk border-dust;
+  transform: translateY(-2px);
+}
+.swatch[aria-pressed='true'] {
+  @apply text-neon border-neon bg-coal;
+  box-shadow:
+    0 0 0 2px var(--color-ink),
+    0 0 0 4px var(--color-neon),
+    0 0 14px 2px rgba(125, 249, 255, 0.45);
+  transform: translateY(-3px);
+}
+.swatch .key {
+  @apply absolute top-0.5 right-1 text-[9px] text-dust/70;
+}
+.swatch[aria-pressed='true'] .key {
+  @apply text-neon/80;
+}
+
+/* Range sliders: square thumb, thin groove. */
+input[type='range'].slider {
+  @apply h-8 w-full appearance-none bg-transparent cursor-pointer focus-neon;
+}
+input[type='range'].slider::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--color-ink);
+  border: 2px solid var(--color-line-2);
+}
+input[type='range'].slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 18px;
+  margin-top: -8px;
+  background: var(--color-chalk);
+  border: 2px solid var(--color-ink);
+  box-shadow: 0 0 0 2px var(--color-line-2);
+}
+input[type='range'].slider:hover::-webkit-slider-thumb {
+  background: var(--color-neon);
+}
+input[type='range'].slider::-moz-range-track {
+  height: 6px;
+  background: var(--color-ink);
+  border: 2px solid var(--color-line-2);
+}
+input[type='range'].slider::-moz-range-thumb {
+  width: 10px;
+  height: 14px;
+  border-radius: 0;
+  background: var(--color-chalk);
+  border: 2px solid var(--color-ink);
+  box-shadow: 0 0 0 2px var(--color-line-2);
+}
+
+/* Simulation canvas + overlays. */
+.sim-canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: crosshair;
+  background: #101116;
+}
+
+.crt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.22) 2px 3px),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.35) 100%);
+  mix-blend-mode: multiply;
+}
+
+.blink {
+  animation: blink 1s steps(2, start) infinite;
+}
+@keyframes blink {
+  to {
+    visibility: hidden;
   }
 }
-p {
-  margin: 0;
+
+/* Scrollbars in the dock strip. */
+.strip {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) var(--color-ink);
+}
+.strip::-webkit-scrollbar {
+  height: 8px;
+}
+.strip::-webkit-scrollbar-thumb {
+  background: var(--color-line-2);
+}
+.strip::-webkit-scrollbar-track {
+  background: var(--color-ink);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+@media (prefers-reduced-motion: reduce) {
+  .blink {
+    animation: none;
+  }
+  .swatch,
+  .btn {
+    transition: none;
+  }
 }
