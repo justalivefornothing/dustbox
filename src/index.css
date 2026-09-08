@@ -84,8 +84,8 @@ button {
 }
 
 @utility crisp {
-  image-rendering: pixelated;
   image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 @utility focus-neon {
@@ -207,8 +207,8 @@ input[type='range'].slider::-moz-range-thumb {
 /* Simulation canvas + overlays. */
 .sim-canvas {
   display: block;
+  image-rendering: crisp-edges; /* Firefox fallback */
   image-rendering: pixelated;
-  image-rendering: crisp-edges;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;

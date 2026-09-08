@@ -102,10 +102,22 @@ export interface GridSnapshot {
 
 export const FORMAT_TAG = 'DB1'
 
-export function encodeGrid(snap: GridSnapshot, full = true): string {
+/**
+ * How much of the world a grid string carries:
+ *   'species'  what is where (presets, shareable levels)
+ *   'state'    + registers, so fire lifetimes and flow headings survive
+ *   'full'     + per-cell shade noise (incompressible: ~2 bytes per cell)
+ * Save slots use 'state' and re-roll shades on load; the visual difference is
+ * nil and it keeps a 300x300 save at a few KB instead of 250 KB.
+ */
+export type GridDetail = 'species' | 'state' | 'full'
+
+export function encodeGrid(snap: GridSnapshot, detail: GridDetail | boolean = 'full'): string {
+  const level: GridDetail = detail === true ? 'full' : detail === false ? 'species' : detail
   const parts = [FORMAT_TAG, String(snap.width), String(snap.height), bytesToBase64(rleEncode(snap.species))]
-  if (full && snap.reg && snap.shade) {
-    parts.push(bytesToBase64(rleEncode(snap.reg)), bytesToBase64(rleEncode(snap.shade)))
+  if (level !== 'species' && snap.reg) {
+    parts.push(bytesToBase64(rleEncode(snap.reg)))
+    if (level === 'full' && snap.shade) parts.push(bytesToBase64(rleEncode(snap.shade)))
   }
   return parts.join(';')
 }
@@ -122,12 +134,14 @@ export function decodeGrid(text: string): GridSnapshot {
   const species = new Uint8Array(size)
   if (rleDecode(base64ToBytes(parts[3]), species) !== size) throw new RangeError('species length mismatch')
   const snap: GridSnapshot = { width, height, species }
-  if (parts.length >= 6) {
+  if (parts.length >= 5) {
     const reg = new Uint8Array(size)
-    const shade = new Uint8Array(size)
     if (rleDecode(base64ToBytes(parts[4]), reg) !== size) throw new RangeError('register length mismatch')
-    if (rleDecode(base64ToBytes(parts[5]), shade) !== size) throw new RangeError('shade length mismatch')
     snap.reg = reg
+  }
+  if (parts.length >= 6) {
+    const shade = new Uint8Array(size)
+    if (rleDecode(base64ToBytes(parts[5]), shade) !== size) throw new RangeError('shade length mismatch')
     snap.shade = shade
   }
   return snap

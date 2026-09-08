@@ -1,8 +1,8 @@
 /**
  * Named save slots on top of any Storage-like key/value store (localStorage
  * in the browser, a Map in tests). Grids are stored as Dustbox RLE strings
- * (see src/sim/rle.ts) so a typical scene costs a few KB instead of 270 KB
- * for three raw 300x300 byte planes.
+ * (see src/sim/rle.ts) at the 'state' detail level (species + registers), so
+ * a typical 300x300 scene costs a few KB instead of 180 KB of raw planes.
  */
 import { decodeGrid, encodeGrid, type GridSnapshot } from '../sim/rle'
 import type { World } from '../sim/world'
@@ -65,7 +65,7 @@ export class SlotStore {
       width: world.width,
       height: world.height,
       cells: world.tally(),
-      grid: encodeGrid(snap, true),
+      grid: encodeGrid(snap, 'state'),
     }
     this.storage.setItem(this.key(index), JSON.stringify(rec))
     const { grid: _grid, ...meta } = rec
@@ -107,8 +107,9 @@ export class SlotStore {
 
 /** Copy a decoded snapshot into a world, resampling registers/shades if sizes differ. */
 export function applySnapshot(world: World, snap: GridSnapshot, initialRegister: (species: number) => number): void {
-  if (snap.width === world.width && snap.height === world.height && snap.reg && snap.shade) {
-    world.load({ width: snap.width, height: snap.height, species: snap.species, reg: snap.reg, shade: snap.shade })
+  if (snap.width === world.width && snap.height === world.height && snap.reg) {
+    // Same size with registers: verbatim. Shades are re-rolled if absent.
+    world.load(snap)
     return
   }
   // Different size (or species-only data): nearest-neighbour resample and

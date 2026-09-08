@@ -92,6 +92,27 @@ describe('grid strings', () => {
     expect(Buffer.from(snap.shade!).equals(Buffer.from(w.shade))).toBe(true)
   })
 
+  it('supports a species+registers level without shades', () => {
+    const w = new World(64, 64, 9)
+    w.paint(32, 20, 10, E.Water, 'circle')
+    w.paint(32, 50, 6, E.Fire, 'circle')
+    w.step(5)
+    const text = encodeGrid(w.snapshot(), 'state')
+    expect(text.split(';')).toHaveLength(5)
+    const snap = decodeGrid(text)
+    expect(Buffer.from(snap.species).equals(Buffer.from(w.species))).toBe(true)
+    expect(Buffer.from(snap.reg!).equals(Buffer.from(w.reg))).toBe(true)
+    expect(snap.shade).toBeUndefined()
+    // Loading a shade-less snapshot re-rolls shades instead of zeroing them.
+    const w2 = new World(64, 64, 10)
+    w2.load(snap)
+    expect(Buffer.from(w2.species).equals(Buffer.from(w.species))).toBe(true)
+    expect(w2.shade.some((v) => v !== 0)).toBe(true)
+    // Boolean flags still work as shorthands.
+    expect(encodeGrid(w.snapshot(), false).split(';')).toHaveLength(4)
+    expect(encodeGrid(w.snapshot(), true).split(';')).toHaveLength(6)
+  })
+
   it('is small for a typical scene', () => {
     const w = new World(300, 300, 5)
     w.paint(150, 200, 60, E.Stone, 'circle')

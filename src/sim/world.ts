@@ -198,14 +198,19 @@ export class World {
     this.clock.fill(this.parity)
   }
 
-  /** Replace the grid contents from a snapshot (sizes must match). */
-  load(snap: WorldSnapshot): void {
+  /**
+   * Replace the grid contents from a snapshot (sizes must match). Missing
+   * registers are zeroed; missing shades are re-rolled from the RNG.
+   */
+  load(snap: { width: number; height: number; species: Uint8Array; reg?: Uint8Array; shade?: Uint8Array }): void {
     if (snap.width !== this.width || snap.height !== this.height) {
       throw new RangeError('snapshot size mismatch')
     }
     this.species.set(snap.species)
-    this.reg.set(snap.reg)
-    this.shade.set(snap.shade)
+    if (snap.reg) this.reg.set(snap.reg)
+    else this.reg.fill(0)
+    if (snap.shade) this.shade.set(snap.shade)
+    else for (let i = 0; i < this.size; i++) this.shade[i] = this.rng.byte()
     this.clock.fill(this.parity)
   }
 

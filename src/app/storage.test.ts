@@ -49,11 +49,20 @@ describe('save slots', () => {
     expect(loaded.name).toBe('Lava pit')
     expect(Buffer.from(loaded.species).equals(Buffer.from(w.species))).toBe(true)
     expect(Buffer.from(loaded.reg!).equals(Buffer.from(w.reg))).toBe(true)
-    expect(Buffer.from(loaded.shade!).equals(Buffer.from(w.shade))).toBe(true)
+    // Shade noise is deliberately not persisted (see rle.ts GridDetail).
+    expect(loaded.shade).toBeUndefined()
 
     const list = store.list()
     expect(list[2]?.name).toBe('Lava pit')
     expect(list.filter(Boolean)).toHaveLength(1)
+
+    // Applying the loaded slot to a fresh world reproduces the species and
+    // registers exactly and fills in fresh shades for every cell.
+    const dst = new World(300, 300, 1)
+    applySnapshot(dst, loaded, (s) => initialRegister(s, dst.rng))
+    expect(Buffer.from(dst.species).equals(Buffer.from(w.species))).toBe(true)
+    expect(Buffer.from(dst.reg).equals(Buffer.from(w.reg))).toBe(true)
+    expect(dst.shade.some((v) => v !== 0)).toBe(true)
   })
 
   it('stores the grid with the RLE codec, not raw bytes', () => {
@@ -68,6 +77,8 @@ describe('save slots', () => {
     const speciesB64 = rec.grid.split(';')[3]
     expect(speciesB64).toBe(Buffer.from(rleEncode(w.species)).toString('base64'))
     expect(speciesB64.length).toBeLessThan(w.size / 4)
+    // Whole record (species + registers) stays small: well under 40 KB for this scene.
+    expect(raw.length).toBeLessThan(40_000)
   })
 
   it('removes slots and ignores corrupt records', () => {
