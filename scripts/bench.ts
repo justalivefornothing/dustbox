@@ -31,21 +31,30 @@ function timeIt(fn: () => void): number {
   return performance.now() - t0
 }
 
-function build(name: string, fill: (w: World) => void, headline = false): Row {
-  const w = new World(SIZE, SIZE, 0xbe5e)
-  fill(w)
-  // A short warm-up lets the JIT settle before the timed section.
-  w.step(20)
-  const ms = timeIt(() => w.step(TICKS))
-  return { scene: name, ms, cells: w.tally(), headline }
+/**
+ * Time `TICKS` ticks on a fresh world. `runs` > 1 reports the fastest run:
+ * the standard way to read a CPU benchmark on a machine that is also doing
+ * other things (the minimum is the least noisy estimate of the true cost).
+ */
+function build(name: string, fill: (w: World) => void, headline = false, runs = 1): Row {
+  let best = Number.POSITIVE_INFINITY
+  let cells = 0
+  for (let r = 0; r < runs; r++) {
+    const w = new World(SIZE, SIZE, 0xbe5e)
+    fill(w)
+    // A short warm-up lets the JIT settle before the timed section.
+    w.step(20)
+    best = Math.min(best, timeIt(() => w.step(TICKS)))
+    cells = w.tally()
+  }
+  return { scene: name, ms: best, cells, headline }
 }
 
 const rows: Row[] = []
 rows.push(build('empty grid (scan floor)', () => {}))
 for (const p of PRESETS) {
-  rows.push(
-    build(`preset: ${p.name}`, (w) => loadPreset(w, p), p.id === 'volcano'),
-  )
+  const isHeadline = p.id === 'volcano'
+  rows.push(build(`preset: ${p.name}${isHeadline ? ' (best of 3)' : ''}`, (w) => loadPreset(w, p), isHeadline, isHeadline ? 3 : 1))
 }
 rows.push(
   build('30k water cells (blocked liquid)', (w) => {

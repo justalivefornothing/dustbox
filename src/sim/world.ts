@@ -37,6 +37,8 @@ import {
   gasRule,
 } from './rules'
 
+const WALL = E.Wall
+
 export type BrushShape = 'circle' | 'square'
 
 export interface WorldSnapshot {
@@ -92,7 +94,7 @@ export class World {
   /** Species at (x, y); anything outside the grid reads as Wall. */
   at(x: number, y: number): number {
     // Unsigned compare folds the negative check into the upper-bound check.
-    if ((x >>> 0) >= this.width || (y >>> 0) >= this.height) return E.Wall
+    if ((x >>> 0) >= this.width || (y >>> 0) >= this.height) return WALL
     return this.species[y * this.width + x]
   }
 
