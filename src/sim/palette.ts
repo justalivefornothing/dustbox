@@ -28,7 +28,7 @@ export function buildColorLut(): Uint8ClampedArray {
 /** Species whose base colour is nearest to (r, g, b). Transparent -> Empty. */
 export function nearestElement(r: number, g: number, b: number, a = 255): number {
   if (a < 128) return E.Empty
-  let best = E.Empty
+  let best: number = E.Empty
   let bestD = Number.POSITIVE_INFINITY
   for (const s of SPECIES) {
     const dr = r - s.color[0]

@@ -252,13 +252,32 @@ for (const s of SPECIES) {
   GLOW[s.id] = s.glow
 }
 
-/** True if `target` is a fluid (gas/liquid/powder) less dense than `self`. */
-export function canSinkInto(self: number, target: number): boolean {
-  return PHASE_OF[target] !== PHASE.Solid && DENSITY[target] < DENSITY[self]
+/**
+ * Pairwise movement tables, indexed by `(self << 4) | target`. One byte read
+ * replaces two phase/density lookups and a compare in the hottest loop of
+ * the simulation. Unregistered ids are solid walls: nothing moves into them.
+ */
+export const SINK = new Uint8Array(SPECIES_SLOTS * SPECIES_SLOTS)
+export const RISE = new Uint8Array(SPECIES_SLOTS * SPECIES_SLOTS)
+{
+  const registered = new Set<number>(SPECIES.map((s) => s.id))
+  for (let self = 0; self < SPECIES_SLOTS; self++) {
+    for (let target = 0; target < SPECIES_SLOTS; target++) {
+      if (!registered.has(self) || !registered.has(target)) continue
+      const p = PHASE_OF[target]
+      const k = (self << 4) | target
+      SINK[k] = p !== PHASE.Solid && DENSITY[target] < DENSITY[self] ? 1 : 0
+      RISE[k] = p !== PHASE.Solid && p !== PHASE.Powder && DENSITY[target] > DENSITY[self] ? 1 : 0
+    }
+  }
 }
 
-/** True if `target` is a gas or liquid denser than `self` (buoyancy). */
+/** True if `target` is a fluid (gas/liquid/powder) less dense than `self`. */
+export function canSinkInto(self: number, target: number): boolean {
+  return SINK[(self << 4) | target] === 1
+}
+
+/** True if `target` is a gas, liquid or flame denser than `self` (buoyancy). */
 export function canRiseInto(self: number, target: number): boolean {
-  const p = PHASE_OF[target]
-  return (p === PHASE.Gas || p === PHASE.Liquid) && DENSITY[target] > DENSITY[self]
+  return RISE[(self << 4) | target] === 1
 }

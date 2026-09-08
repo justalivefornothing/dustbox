@@ -16,7 +16,7 @@
  */
 import type { World } from './world'
 import type { Rng } from './rng'
-import { E, DENSITY, PHASE, PHASE_OF, FLAMMABILITY, DISSOLVABLE } from './species'
+import { E, PHASE, PHASE_OF, FLAMMABILITY, DISSOLVABLE, SINK, RISE } from './species'
 
 export type Rule = (w: World, x: number, y: number, i: number) => void
 
@@ -34,11 +34,11 @@ const ICE = E.Ice
 const GAS = E.Gas
 
 const SOLID = PHASE.Solid
-const POWDER = PHASE.Powder
-const DENS = DENSITY
 const PH = PHASE_OF
 const FLAM = FLAMMABILITY
 const DISS = DISSOLVABLE
+const SINK_T = SINK
+const RISE_T = RISE
 
 /** Starting register value for a freshly created cell of `species`. */
 export function initialRegister(species: number, rng: Rng): number {
@@ -61,13 +61,12 @@ export function initialRegister(species: number, rng: Rng): number {
 
 /** True if `target` is a fluid (gas/liquid/powder) less dense than `self`. */
 function sinks(self: number, target: number): boolean {
-  return PH[target] !== SOLID && DENS[target] < DENS[self]
+  return SINK_T[(self << 4) | target] === 1
 }
 
-/** True if `target` is a gas or liquid denser than `self` (buoyancy). */
+/** True if `target` is a gas, liquid or flame denser than `self` (buoyancy). */
 function rises(self: number, target: number): boolean {
-  const p = PH[target]
-  return p !== SOLID && p !== POWDER && DENS[target] > DENS[self]
+  return RISE_T[(self << 4) | target] === 1
 }
 
 /** Von Neumann neighbourhood offsets: right, left, down, up. */

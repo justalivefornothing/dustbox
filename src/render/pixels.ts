@@ -18,8 +18,13 @@ export interface RenderBuffers {
   readonly size: number
   readonly width: number
   readonly height: number
+  /** Full-resolution emissive intensity, written by the base pass. */
   readonly emit: Float32Array
-  readonly tmp: Float32Array
+  /** Half-resolution copies the blur runs on (4x cheaper, visually identical for a soft glow). */
+  readonly loWidth: number
+  readonly loHeight: number
+  readonly lo: Float32Array
+  readonly loTmp: Float32Array
   readonly prefix: Float32Array
 }
 
@@ -36,13 +41,18 @@ export interface RenderOptions {
 
 export function createRenderBuffers(width: number, height: number): RenderBuffers {
   const size = width * height
+  const loWidth = Math.ceil(width / 2)
+  const loHeight = Math.ceil(height / 2)
   return {
     size,
     width,
     height,
     emit: new Float32Array(size),
-    tmp: new Float32Array(size),
-    prefix: new Float32Array(Math.max(width, height) + 1),
+    loWidth,
+    loHeight,
+    lo: new Float32Array(loWidth * loHeight),
+    loTmp: new Float32Array(loWidth * loHeight),
+    prefix: new Float32Array(Math.max(loWidth, loHeight) + 1),
   }
 }
 
@@ -165,45 +175,114 @@ export function renderPixels(world: World, rgba: Uint8ClampedArray, buffers: Ren
   }
 
   if (wantGlow && anyGlow) {
-    const radius = opts.glowRadius ?? 3
+    const radius = Math.max(1, Math.round((opts.glowRadius ?? 3) / 2))
+    downsample2x(buffers)
     blur2d(buffers, radius)
     blur2d(buffers, radius)
-    const strength = opts.glowStrength ?? 1.15
-    for (let i = 0, o = 0; i < size; i++, o += 4) {
-      const e = emit[i]
-      if (e <= 0.004) continue
-      const k = e * strength
-      rgba[o] += GLOW_R * k
-      rgba[o + 1] += GLOW_G * k
-      rgba[o + 2] += GLOW_B * k
-    }
+    composite(rgba, buffers, opts.glowStrength ?? 1.15)
   }
   return anyGlow
 }
 
-/** Separable box blur of `buffers.emit` in place using prefix sums. */
+/** Average 2x2 blocks of `emit` into the half-resolution `lo` field. */
+function downsample2x(buffers: RenderBuffers): void {
+  const { width: w, height: h, emit, loWidth: lw, loHeight: lh, lo } = buffers
+  for (let ly = 0; ly < lh; ly++) {
+    const y0 = ly * 2
+    const y1 = y0 + 1 < h ? y0 + 1 : y0
+    const r0 = y0 * w
+    const r1 = y1 * w
+    const lrow = ly * lw
+    for (let lx = 0; lx < lw; lx++) {
+      const x0 = lx * 2
+      const x1 = x0 + 1 < w ? x0 + 1 : x0
+      lo[lrow + lx] = (emit[r0 + x0] + emit[r0 + x1] + emit[r1 + x0] + emit[r1 + x1]) * 0.25
+    }
+  }
+}
+
+/** Separable box blur of `buffers.lo` in place using prefix sums. */
 function blur2d(buffers: RenderBuffers, radius: number): void {
-  const { width: w, height: h, emit, tmp, prefix } = buffers
+  const { loWidth: w, loHeight: h, lo: src, loTmp: tmp, prefix } = buffers
   const norm = 1 / (radius * 2 + 1)
-  // Horizontal: emit -> tmp
+  // Horizontal: src -> tmp
   for (let y = 0; y < h; y++) {
     const row = y * w
     prefix[0] = 0
-    for (let x = 0; x < w; x++) prefix[x + 1] = prefix[x] + emit[row + x]
+    for (let x = 0; x < w; x++) prefix[x + 1] = prefix[x] + src[row + x]
     for (let x = 0; x < w; x++) {
       const lo = x - radius < 0 ? 0 : x - radius
       const hi = x + radius + 1 > w ? w : x + radius + 1
       tmp[row + x] = (prefix[hi] - prefix[lo]) * norm
     }
   }
-  // Vertical: tmp -> emit
+  // Vertical: tmp -> src
   for (let x = 0; x < w; x++) {
     prefix[0] = 0
     for (let y = 0; y < h; y++) prefix[y + 1] = prefix[y] + tmp[y * w + x]
     for (let y = 0; y < h; y++) {
       const lo = y - radius < 0 ? 0 : y - radius
       const hi = y + radius + 1 > h ? h : y + radius + 1
-      emit[y * w + x] = (prefix[hi] - prefix[lo]) * norm
+      src[y * w + x] = (prefix[hi] - prefix[lo]) * norm
+    }
+  }
+}
+
+/**
+ * Add the blurred half-res glow onto the RGBA buffer with bilinear
+ * upsampling. Rows that are completely dark are skipped early, which is the
+ * common case: glow is usually confined to one part of the scene.
+ */
+function composite(rgba: Uint8ClampedArray, buffers: RenderBuffers, strength: number): void {
+  const { width: w, height: h, loWidth: lw, loHeight: lh, lo, loTmp: row } = buffers
+  const kR = GLOW_R * strength
+  const kG = GLOW_G * strength
+  const kB = GLOW_B * strength
+  for (let y = 0; y < h; y++) {
+    // Pixel centre (y + 0.5) maps to half-res coordinate y/2 - 0.25: even
+    // rows sit 3/4 of the way from lo row y/2-1 to y/2, odd rows 1/4 of the
+    // way from (y-1)/2 to (y+1)/2. Same for x, so no per-pixel floor() is needed.
+    const odd = y & 1
+    let ya = odd ? (y - 1) >> 1 : (y >> 1) - 1
+    let yb = ya + 1
+    const wb = odd ? 0.25 : 0.75
+    if (ya < 0) ya = 0
+    if (yb >= lh) yb = lh - 1
+    const rowA = ya * lw
+    const rowB = yb * lw
+    // Vertically interpolate this row of the half-res field, tracking whether
+    // anything is lit so dark rows are skipped in O(lw) instead of O(w).
+    let live = false
+    for (let lx = 0; lx < lw; lx++) {
+      const a = lo[rowA + lx]
+      const v = a + (lo[rowB + lx] - a) * wb
+      row[lx] = v
+      if (v > 0.004) live = true
+    }
+    if (!live) continue
+    let o = y * w * 4
+    let prev = row[0]
+    for (let lx = 0; lx < lw; lx++) {
+      const cur = row[lx]
+      const next = lx + 1 < lw ? row[lx + 1] : cur
+      // Pixel 2*lx leans on the previous sample, pixel 2*lx+1 on the next.
+      const e0 = prev * 0.25 + cur * 0.75
+      if (e0 > 0.004) {
+        rgba[o] += kR * e0
+        rgba[o + 1] += kG * e0
+        rgba[o + 2] += kB * e0
+      }
+      o += 4
+      if (lx * 2 + 1 < w) {
+        const e1 = cur * 0.75 + next * 0.25
+        if (e1 > 0.004) {
+          rgba[o] += kR * e1
+          rgba[o + 1] += kG * e1
+          rgba[o + 2] += kB * e1
+        }
+        o += 4
+      }
+      prev = cur
     }
   }
 }
