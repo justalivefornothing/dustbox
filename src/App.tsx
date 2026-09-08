@@ -25,27 +25,29 @@ export default function App() {
     return () => engine.stop()
   }, [engine])
 
-  // Mirror tool state into the engine without re-rendering the canvas.
+  // Mirror tool state into the engine without re-rendering the canvas. Grid
+  // size changes rebuild the world synchronously here, before React remounts
+  // SimCanvas (keyed by size), so the new canvas attaches to the new world.
   useEffect(() => {
     const sync = () => {
       const t = useTools.getState()
-      engine.paused = t.paused
-      engine.speed = t.speed
-      engine.glow = t.glow
-      engine.brush = { element: t.element, radius: t.brushSize >> 1, shape: t.shape }
+      engine.configure({
+        paused: t.paused,
+        speed: t.speed,
+        glow: t.glow,
+        brush: { element: t.element, radius: t.brushSize >> 1, shape: t.shape },
+      })
     }
     sync()
-    return useTools.subscribe(sync)
+    return useTools.subscribe((s, prev) => {
+      if (s.gridSize !== prev.gridSize && engine.size !== s.gridSize) {
+        engine.resize(s.gridSize)
+        const volcano = PRESETS.find((p) => p.id === 'volcano')
+        if (volcano) loadPreset(engine.world, volcano)
+      }
+      sync()
+    })
   }, [engine])
-
-  // Grid size changes rebuild the world; SimCanvas remounts via its key.
-  useEffect(() => {
-    if (engine.size !== gridSize) {
-      engine.resize(gridSize)
-      const volcano = PRESETS.find((p) => p.id === 'volcano')
-      if (volcano) loadPreset(engine.world, volcano)
-    }
-  }, [engine, gridSize])
 
   useKeyboard(engine)
 
@@ -53,15 +55,19 @@ export default function App() {
     <div className="mx-auto flex min-h-dvh w-full max-w-[1200px] flex-col gap-3 pb-6">
       <TopBar engine={engine} />
 
-      <main className="flex flex-col items-center gap-4 px-3 sm:flex-row sm:items-start sm:justify-center sm:px-5">
-        <SimCanvas key={gridSize} engine={engine} size={gridSize} />
-        <Hud engine={engine} />
+      {/* Mobile: canvas, tools, then stats. Desktop: canvas + stats side by side, tools underneath. */}
+      <main className="flex flex-col items-center gap-4 px-3 sm:grid sm:grid-cols-[minmax(0,1fr)_15rem] sm:grid-rows-[auto_auto] sm:items-start sm:gap-x-4 sm:px-5">
+        <div className="order-1 flex w-full justify-center sm:col-start-1 sm:row-start-1">
+          <SimCanvas key={gridSize} engine={engine} size={gridSize} />
+        </div>
+        <div className="order-3 w-full sm:col-start-2 sm:row-start-1">
+          <Hud engine={engine} />
+        </div>
+        <section aria-label="Tools" className="order-2 flex w-full flex-col items-center gap-3 sm:col-span-2 sm:row-start-2">
+          <Dock />
+          <Controls engine={engine} />
+        </section>
       </main>
-
-      <section aria-label="Tools" className="flex flex-col items-center gap-3 px-2 sm:px-5">
-        <Dock />
-        <Controls engine={engine} />
-      </section>
 
       <footer className="mx-auto mt-2 flex w-full max-w-[900px] flex-wrap justify-center gap-x-4 gap-y-1 px-4 text-[10px] text-dust">
         {HOTKEYS.map((h) => (

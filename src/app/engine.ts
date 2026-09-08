@@ -128,10 +128,34 @@ export class Engine {
     return () => this.listeners.delete(fn)
   }
 
+  /** Apply UI tool state in one call (keeps React components from poking fields). */
+  configure(opts: { paused: boolean; speed: number; glow: boolean; brush: Brush }): void {
+    this.paused = opts.paused
+    this.speed = opts.speed
+    this.glow = opts.glow
+    if (this.overriddenElement !== null) {
+      // Mid-stroke erase override: remember the new pick, keep erasing for now.
+      this.overriddenElement = opts.brush.element
+      this.brush = { ...opts.brush, element: E.Empty }
+    } else {
+      this.brush = opts.brush
+    }
+    if (this.paused) this.draw()
+  }
+
   // --------------------------------------------------------------- painting
 
-  /** Begin a stroke at grid coordinates. */
-  pointerBegin(x: number, y: number): void {
+  private overriddenElement: number | null = null
+
+  /**
+   * Begin a stroke at grid coordinates. `erase` temporarily swaps the brush
+   * element for the eraser (right button / secondary touch) until the stroke ends.
+   */
+  pointerBegin(x: number, y: number, erase = false): void {
+    if (erase) {
+      this.overriddenElement = this.brush.element
+      this.brush = { ...this.brush, element: E.Empty }
+    }
     this.pointerDown = true
     this.px = x
     this.py = y
@@ -154,6 +178,10 @@ export class Engine {
 
   pointerEnd(): void {
     this.pointerDown = false
+    if (this.overriddenElement !== null) {
+      this.brush = { ...this.brush, element: this.overriddenElement }
+      this.overriddenElement = null
+    }
   }
 
   private stamp(x: number, y: number): void {

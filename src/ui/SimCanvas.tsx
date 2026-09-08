@@ -25,6 +25,9 @@ export function SimCanvas({ engine, size }: Props) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    // Safety net: the world should already match (App resizes it before this
+    // component remounts), but never attach a canvas of the wrong size.
+    if (engine.size !== size) engine.resize(size)
     engine.attach(canvas)
     return () => engine.detach()
   }, [engine, size])
@@ -61,32 +64,20 @@ export function SimCanvas({ engine, size }: Props) {
     [size],
   )
 
-  const strokeElement = useRef<number | null>(null)
-
   const onPointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0 && e.button !== 2) return
     e.currentTarget.setPointerCapture(e.pointerId)
     e.currentTarget.focus({ preventScroll: true })
-    // Right button (or a second finger) erases for the duration of the stroke.
-    if (e.button === 2) {
-      strokeElement.current = engine.brush.element
-      engine.brush.element = E.Empty
-    }
     const [x, y] = toGrid(e)
-    engine.pointerBegin(x, y)
+    // Right button erases for the duration of the stroke.
+    engine.pointerBegin(x, y, e.button === 2)
   }
   const onPointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
     if (e.buttons === 0) return
     const [x, y] = toGrid(e)
     engine.pointerMove(x, y)
   }
-  const endStroke = () => {
-    engine.pointerEnd()
-    if (strokeElement.current !== null) {
-      engine.brush.element = strokeElement.current
-      strokeElement.current = null
-    }
-  }
+  const endStroke = () => engine.pointerEnd()
 
   const onDrop = async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()

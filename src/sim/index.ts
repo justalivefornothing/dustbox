@@ -33,3 +33,5 @@ export {
 } from './rle'
 export type { GridSnapshot } from './rle'
 export { nearestElement, buildColorLut } from './palette'
+export { PRESETS, presetById, loadPreset } from './presets'
+export type { PresetData } from './presets'

@@ -38,7 +38,7 @@ export function Hud({ engine }: Props) {
   useEffect(() => engine.onStats((st) => setS(snapshot(st))), [engine])
 
   return (
-    <aside aria-label="Simulation stats" className="pixel-panel flex w-full flex-col gap-3 p-3 text-[11px] sm:w-56">
+    <aside aria-label="Simulation stats" className="pixel-panel flex w-full flex-col gap-3 p-3 text-[11px] sm:w-60">
       <dl className="grid grid-cols-2 gap-x-3 gap-y-1 tabular-nums">
         <dt className="text-dust">FPS</dt>
         <dd className="text-right text-neon">{s.fps}</dd>
@@ -46,9 +46,9 @@ export function Hud({ engine }: Props) {
         <dd className="text-right text-neon">{s.tps}</dd>
         <dt className="text-dust">Tick</dt>
         <dd className="text-right">{fmt.format(s.generation)}</dd>
-        <dt className="text-dust">Live cells</dt>
+        <dt className="text-dust">Cells</dt>
         <dd className="text-right">{fmt.format(s.live)}</dd>
-        <dt className="text-dust">Sim / draw</dt>
+        <dt className="text-dust">Sim&#47;draw</dt>
         <dd className="text-right" title="Milliseconds of work per second of wall time">
           {s.simMs.toFixed(0)}
           <span className="text-dust">/</span>

@@ -119,12 +119,21 @@ export class Presenter {
     gl.disable(gl.BLEND)
     this.tex = tex
     this.program = program
-    this.canvas.addEventListener('webglcontextlost', (e) => {
-      e.preventDefault()
-      this.lost = true
-    })
+    if (!this.listening) {
+      this.listening = true
+      this.canvas.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault()
+        this.lost = true
+      })
+      this.canvas.addEventListener('webglcontextrestored', () => {
+        // Rebuild GPU objects on the same (now valid) context.
+        if (this.initWebGL()) this.lost = false
+      })
+    }
     return gl
   }
+
+  private listening = false
 
   /** Push the current contents of `pixels` to the screen. */
   present(): void {
@@ -142,13 +151,20 @@ export class Presenter {
     this.ctx2d.putImageData(this.image, 0, 0)
   }
 
+  /**
+   * Release GPU objects. The context itself is left alive: a canvas element
+   * can only ever hand out one context, and React StrictMode re-runs the
+   * attach effect on the same element, so a later Presenter must be able to
+   * reuse it.
+   */
   dispose(): void {
     const gl = this.gl
-    if (gl) {
+    if (gl && !this.lost) {
       if (this.tex) gl.deleteTexture(this.tex)
       if (this.program) gl.deleteProgram(this.program)
-      gl.getExtension('WEBGL_lose_context')?.loseContext()
     }
+    this.tex = null
+    this.program = null
     this.gl = null
     this.ctx2d = null
   }
