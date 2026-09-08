@@ -1,6 +1,9 @@
 import { useEffect, useMemo } from 'react'
 import { Engine } from './app/engine'
-import { useTools } from './app/store'
+import { flash, useTools } from './app/store'
+import { levelFromHash } from './app/share'
+import { applySnapshot } from './app/storage'
+import { initialRegister } from './sim/rules'
 import { PRESETS, loadPreset } from './sim/presets'
 import { Controls } from './ui/Controls'
 import { Dock } from './ui/Dock'
@@ -15,8 +18,15 @@ export default function App() {
   // One engine for the app's lifetime; the world inside it is swapped on resize.
   const engine = useMemo(() => {
     const e = new Engine(useTools.getState().gridSize)
-    const volcano = PRESETS.find((p) => p.id === 'volcano')
-    if (volcano) loadPreset(e.world, volcano)
+    // A shared level in the URL hash wins over the default scene.
+    const shared = typeof location !== 'undefined' ? levelFromHash(location.hash) : null
+    if (shared) {
+      applySnapshot(e.world, shared, (s) => initialRegister(s, e.world.rng))
+      queueMicrotask(() => flash(`Loaded a shared ${shared.width}x${shared.height} level from the link`, 4000))
+    } else {
+      const volcano = PRESETS.find((p) => p.id === 'volcano')
+      if (volcano) loadPreset(e.world, volcano)
+    }
     return e
   }, [])
 

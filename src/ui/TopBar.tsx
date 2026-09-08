@@ -3,6 +3,7 @@ import type { Engine } from '../app/engine'
 import { downloadBlob, exportPng, importPng, type ExportScale } from '../app/pngio'
 import { GRID_SIZES, flash, useTools, type GridSize } from '../app/store'
 import { PRESETS, loadPreset } from '../sim/presets'
+import { levelToHash } from '../app/share'
 import { SlotsDialog } from './SlotsDialog'
 
 interface Props {
@@ -27,6 +28,18 @@ export function TopBar({ engine }: Props) {
     loadPreset(engine.world, p)
     engine.draw()
     flash(`${p.name}: ${p.blurb}`, 5000)
+  }
+
+  const onShare = async () => {
+    const hash = levelToHash(engine.world)
+    const url = `${location.origin}${location.pathname}${hash}`
+    history.replaceState(null, '', hash)
+    try {
+      await navigator.clipboard.writeText(url)
+      flash(`Link copied (${(url.length / 1024).toFixed(1)} KB): anyone opening it gets this level`)
+    } catch {
+      flash('Level is in the address bar: copy the URL to share it')
+    }
   }
 
   const onExport = async (scale: ExportScale) => {
@@ -90,6 +103,10 @@ export function TopBar({ engine }: Props) {
 
       <button type="button" className="btn" onClick={() => setSlotsOpen(true)} title="Save or load one of six named slots">
         Slots
+      </button>
+
+      <button type="button" className="btn" onClick={() => void onShare()} title="Copy a link that contains this level (RLE in the URL hash)">
+        Share
       </button>
 
       <label className="flex items-center gap-2">

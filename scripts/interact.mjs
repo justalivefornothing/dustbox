@@ -150,6 +150,22 @@ try {
   await page.keyboard.press('g')
   check('G toggles glow', (await page.locator('button:has-text("Glow")').getAttribute('aria-pressed')) === 'false')
 
+  // 10. Share puts the level in the hash; a fresh page with that hash loads it.
+  await page.selectOption('select[aria-label="Load a preset scene"]', 'acid-bath')
+  await page.waitForTimeout(400)
+  await page.click('button:has-text("Share")')
+  await page.waitForTimeout(300)
+  const hash = await page.evaluate(() => location.hash)
+  check('share writes level hash', hash.startsWith('#level=DB1'), `${hash.length} chars`)
+  const page2 = await browser.newPage({ viewport: { width: 1200, height: 900 } })
+  page2.on('pageerror', (e) => errors.push(String(e)))
+  await page2.goto(`http://127.0.0.1:${port}/${hash}`, { waitUntil: 'load' })
+  await page2.waitForTimeout(1200)
+  const txt2 = await page2.locator('ul[aria-label="Cell count per element"]').innerText()
+  const acid = Number((txt2.match(/Acid\s+([\d,]+)/) || [])[1]?.replace(/,/g, '') ?? 0)
+  check('shared link reloads the level', acid > 500, `acid=${acid}`)
+  await page2.close()
+
   check('no console/page errors', errors.length === 0, errors.join(' | ').slice(0, 200))
 } catch (e) {
   console.log('ERROR', e)
